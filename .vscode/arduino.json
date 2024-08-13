@@ -1,0 +1,6 @@
+{
+    "board": "arduino:avr:uno",
+    "programmer": "arduinoisp",
+    "port": "/dev/ttyACM0",
+    "sketch": "arduino/wind_sensor_measurement/wind_sensor_measurement.ino"
+}
