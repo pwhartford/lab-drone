@@ -22,10 +22,11 @@ HW_CALIB = np.array([  -45.73898678,   365.82689509, -1052.03748077,  1313.97835
 
 
 SAMPLE_FREQUENCY_DESIRED = 10000
-SAMPLE_NUMBER_DESIRED = 1000
-CHANNELS_DESIRED = [0,5,1,4]
+SAMPLE_NUMBER_DESIRED = 100000
+CHANNELS_DESIRED = [0,4]
 
-DATA_FOLDER = '/home/vki/Documents/Data/server_record_test'
+FILENAME = 'testsysctl.txt'
+
 
 
 #Functions for reading/writing data
@@ -35,10 +36,7 @@ def read_data(connection, dtype = 'float'):
 
     return data 
 
-def write_data(connection, data):
-    #Create stream object to handle binary data
-    stream = io.BytesIO()
-
+def write_data(stream, connection, data):
    #Tell the client the length of the data (uses stream object to do this)
     stream.write(data)
     connection.write(struct.pack('<L', stream.tell()))
@@ -56,7 +54,7 @@ streamFig, streamAx = plt.subplots()
 
 
 #Handshake to server for sending regular data
-handshake = np.array([0])
+handshake = np.array([1])
 
 
 #IO stream for handling byte conversion 
@@ -74,22 +72,6 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as clientSocket:
 
     print('[Client] Connected to DAQ')
     
-    _ = read_data(connection)
-    _ = read_data(connection)
-
-    print('[Client] Setting Desired sample frequency and channels')    
-    
-    #Set desired sample frequency
-    handshake = np.array([2, SAMPLE_FREQUENCY_DESIRED, SAMPLE_NUMBER_DESIRED], dtype = 'float')
-    write_data(connection, handshake)
-
-    #Set the desired channels 
-    channelArray =  np.array(CHANNELS_DESIRED, dtype = 'uint8')
-    write_data(connection, channelArray)
-
-    #Set the data folder 
-    dataFolderArray = bytes(DATA_FOLDER, encoding = 'utf8')
-    write_data(connection, dataFolderArray)
 
     #Read the initial information from connecting 
     channels = read_data(connection)
@@ -101,34 +83,38 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as clientSocket:
 
     print('[Client] Streaming data from DAQ - %s Channels - Sample Frequency: %0.2f - Sample Number: %i '%(numChannels, sampleFrequency, sampleNumber))
 
-    handshake = np.array([0], dtype = 'float')
+    #Sending a record command
+    handshake = np.array([1, SAMPLE_NUMBER_DESIRED], dtype = 'float')
+    write_data(stream, connection, handshake)
+
+    fileName = bytes(FILENAME, encoding = 'utf8')
+    write_data(stream, connection, fileName)
 
     ii = 0
     while True:
+        handshake = np.array([0], dtype = 'float')
+
         #Write the handshake
-        write_data(connection, handshake)
+        write_data(stream, connection, handshake)
 
         #Read the data from the server
         
         xArray = read_data(connection)
         dataArray = read_data(connection)
-
     
         #Pass if data array is not the right shape 
-        if dataArray.shape[0]==1:
-            if int(dataArray[0])==1:
-                print('[Client] DAQ is recording...', end = '\r')
-               
-                continue 
+        if dataArray.shape[0]>1:
+            dataArray = dataArray.reshape(int(sampleNumber),numChannels)
+            
+            if CONVERT_VELOCITY: 
+                dataArray = HW_CALIB[0]*dataArray**4 + HW_CALIB[1]*dataArray**3 + HW_CALIB[2]*dataArray**2 + HW_CALIB[3]*dataArray**1 + HW_CALIB[4]
 
-        else: 
-            try:
-                dataArray = dataArray.reshape(int(sampleNumber),numChannels)
-            
-                if CONVERT_VELOCITY: 
-                    dataArray = HW_CALIB[0]*dataArray**4 + HW_CALIB[1]*dataArray**3 + HW_CALIB[2]*dataArray**2 + HW_CALIB[3]*dataArray**1 + HW_CALIB[4]
-            
-            except ValueError: continue 
+        else: continue 
+
+        
+
+
+
 
 
         if ii==0:
