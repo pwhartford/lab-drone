@@ -11,11 +11,11 @@ PI_ADDRESS = "10.240.2.207"
 PORT = 8000
 
 #Spectrum settings
-VIEW_SPECTRUM = False 
+VIEW_SPECTRUM = True 
 NPERSEG_FACTOR = 4
 
 #Hotwire calibration... this is old and poor, needs to be handled better
-CONVERT_VELOCITY = False 
+CONVERT_VELOCITY = True 
 
 HW_CALIB = np.array([  -45.73898678,   365.82689509, -1052.03748077,  1313.97835161,
         -606.88071301])
@@ -52,7 +52,7 @@ def write_data(connection, data):
     connection.flush()
 
 #Figure to view data
-streamFig, streamAx = plt.subplots()
+streamFig, [streamAx, sonicAx] = plt.subplots(2,1)
 
 
 #Handshake to server for sending regular data
@@ -113,7 +113,10 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as clientSocket:
         xArray = read_data(connection)
         dataArray = read_data(connection)
 
-    
+        #[Wind Speed (m/s), Horizontal Wind Direction (degrees), U Vector (U), V Vector(V), W Vector (W), Temperature (deg C), Relative Humidity (%), Absolute Pressure (hPa), Air Density (kg/m^3), Pitch Angle (deg), Roll Angle (deg), Magnetic Heading Angle (deg)]
+        sonicArray = read_data(connection)
+        
+
         #Pass if data array is not the right shape 
         if dataArray.shape[0]==1:
             if int(dataArray[0])==1:
