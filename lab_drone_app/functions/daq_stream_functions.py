@@ -3,8 +3,8 @@ import struct
 import numpy as np 
 import io 
 from scipy import signal 
-from PyQt5.QtCore import QThread, pyqtSignal
-
+from PyQt6.QtCore import QThread, pyqtSignal
+from pathlib import Path
 
 
 
@@ -12,12 +12,13 @@ from PyQt5.QtCore import QThread, pyqtSignal
 VIEW_SPECTRUM = False 
 NPERSEG_FACTOR = 4
 
-
 SAMPLE_FREQUENCY_DESIRED = 10000
 SAMPLE_NUMBER_DESIRED = 1000
 CHANNELS_DESIRED = [0,5,1,4]
 
 DATA_FOLDER = '/home/vki/Documents/Data/server_record_test'
+
+USE_SONIC = False 
 
 
 
@@ -38,6 +39,10 @@ class DAQFunctionWrapper(QThread):
         #Flags for interfacing 
         self.connected = False
         self.updateSettingsFlag = False
+        
+        #Saving to local computer
+        self.localSaveFlag = False 
+        self.savePath = Path('/test.csv')
 
     # Functions for reading/writing data
     def read_data(self, dtype = 'float'):
@@ -100,7 +105,10 @@ class DAQFunctionWrapper(QThread):
                 #Read the data from the server
                 xArray = self.read_data()
                 dataArray = self.read_data()
-            
+
+                if USE_SONIC:
+                    sonicArray = self.read_data() 
+
                 #Pass if data array is not the right shape 
                 if dataArray.shape[0]==1:
                     if int(dataArray[0])==1:
@@ -113,9 +121,6 @@ class DAQFunctionWrapper(QThread):
                     try:
                         dataArray = dataArray.reshape(self.sampleNumber, self.numChannels)
                     
-                        # if CONVERT_VELOCITY: 
-                        #     dataArray = HW_CALIB[0]*dataArray**4 + HW_CALIB[1]*dataArray**3 + HW_CALIB[2]*dataArray**2 + HW_CALIB[3]*dataArray**1 + HW_CALIB[4]
-
                     except ValueError: 
                         print('[DAQ Client] Error reshaping array rereading settings')
                         readCommand = np.array([3], dtype = 'float')
@@ -130,6 +135,16 @@ class DAQFunctionWrapper(QThread):
                 
                 else:
                     self.update_plot(xArray, dataArray)
+
+                if self.localSaveFlag:
+                    print('Saving last data to %s'%self.savePath)
+                    header = 'Time'
+                    for channel in self.channels:
+                        header+=',%s'%channel
+                    np.savetxt(self.savePath, np.concatenate([[xArray], dataArray.T]).T, header = header, delimiter=',')
+                    
+                    self.localSaveFlag = False
+
 
                 ii +=1 
                 print('[DAQ Client] Number of Data Blocks Read %i'%(ii), end = '\r')
@@ -171,7 +186,6 @@ class DAQFunctionWrapper(QThread):
         
         #Set desired sample frequency
         handshake = np.array([2, self.sampleFrequencyDesired, self.sampleNumberDesired], dtype = 'float')
-        
         self.write_data(handshake)
 
         #Set the desired channels 

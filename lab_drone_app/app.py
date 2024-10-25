@@ -1,5 +1,5 @@
 ### Gui created by Peter Hartford, for interfacing with drone acquisition system
-from PyQt5 import QtWidgets, QtGui
+from PyQt6 import QtWidgets, QtGui
 import sys 
 from pathlib import Path
 import os 

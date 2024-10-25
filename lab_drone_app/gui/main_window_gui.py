@@ -1,5 +1,5 @@
 # To the poor soul who has to debug this... good luck! 
-from PyQt5 import QtWidgets
+from PyQt6 import QtWidgets
 
 #Import the main window panel and the extra widgets
 from gui.panels.main_window import Ui_MainWindow
@@ -16,7 +16,10 @@ CONFIG_PATH = Path(__file__).parent.parent.absolute() / 'config'
 
 
 #Pi config
-PI_ADDRESS = "10.240.2.207"
+# PI_ADDRESS = "10.240.2.207"
+PI_ADDRESS = "10.42.0.37"
+
+
 PORT = 8000
 
 class MainWindow(Ui_MainWindow):
@@ -46,6 +49,10 @@ class MainWindow(Ui_MainWindow):
         self.actionDark.triggered.connect(lambda: self.change_theme('dark'))
 
         # self.actionSave.triggered.connect(lambda: self.save_settings())
+
+        self.loadButton.clicked.connect(self.update_workspace)
+        self.recordButton.clicked.connect(self.record)
+        self.workspace = Path('/')
 
         self.connectButton.clicked.connect(self.connect_to_daq)
 
@@ -95,6 +102,7 @@ class MainWindow(Ui_MainWindow):
 
         self.ipEdit.setText(self.settings['Host Settings']['ip'])
         self.portSpinBox.setValue(int(self.settings['Host Settings']['port']))
+        self.workspace = Path(self.settings['Record Settings']['record-folder'])
 
     def get_settings(self):
         #Driver Settings
@@ -129,6 +137,20 @@ class MainWindow(Ui_MainWindow):
         elif self.connectButton.text()=='Disconnect':
             self.streamFunctionWrapper.disconnect()
             self.connectButton.setText('Connect')
+
+
+    def update_workspace(self):
+        self.workspace = Path(QtWidgets.QFileDialog.getExistingDirectory(directory = str(self.workspace), \
+                                                      caption = 'Open a Save Folder'))
+                                                                              
+    def record(self):
+        filepath = self.recordNameEdit.text() 
+        filepath +='.csv'
+        savePath = self.workspace / filepath 
+        print('Trying to record to %s'%savePath)
+
+        self.streamFunctionWrapper.savePath = savePath 
+        self.streamFunctionWrapper.localSaveFlag = True 
 
     def update_daq_settings(self):
         channelList = []

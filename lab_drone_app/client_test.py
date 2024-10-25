@@ -7,23 +7,24 @@ import matplotlib.pyplot as plt
 from scipy import signal 
 
 #Pi config
-PI_ADDRESS = "10.240.2.207"
+PI_ADDRESS = "10.42.0.37"
 PORT = 8000
 
 #Spectrum settings
-VIEW_SPECTRUM = True 
-NPERSEG_FACTOR = 4
+VIEW_SPECTRUM = False 
+NPERSEG_FACTOR = 1
 
 #Hotwire calibration... this is old and poor, needs to be handled better
 CONVERT_VELOCITY = True 
 
-HW_CALIB = np.array([  -45.73898678,   365.82689509, -1052.03748077,  1313.97835161,
-        -606.88071301])
+# HW_CALIB = np.array([  -45.73898678,   365.82689509, -1052.03748077,  1313.97835161,
+        # -606.88071301])
 
+HW_CALIB = np.array([  8.05318193, -35.8733112,   56.54615598, -31.48996453,   0.58511311])
 
 SAMPLE_FREQUENCY_DESIRED = 10000
 SAMPLE_NUMBER_DESIRED = 1000
-CHANNELS_DESIRED = [0,5,1,4]
+CHANNELS_DESIRED = [1]
 
 DATA_FOLDER = '/home/vki/Documents/Data/server_record_test'
 
@@ -52,7 +53,10 @@ def write_data(connection, data):
     connection.flush()
 
 #Figure to view data
-streamFig, [streamAx, sonicAx] = plt.subplots(2,1)
+streamFig, streamAx = plt.subplots()
+# sonicFig = plt.figure() 
+# sonicAx = plt.axes(projection='3d')
+
 
 
 #Handshake to server for sending regular data
@@ -114,7 +118,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as clientSocket:
         dataArray = read_data(connection)
 
         #[Wind Speed (m/s), Horizontal Wind Direction (degrees), U Vector (U), V Vector(V), W Vector (W), Temperature (deg C), Relative Humidity (%), Absolute Pressure (hPa), Air Density (kg/m^3), Pitch Angle (deg), Roll Angle (deg), Magnetic Heading Angle (deg)]
-        sonicArray = read_data(connection)
+        # sonicArray = read_data(connection)
         
 
         #Pass if data array is not the right shape 
@@ -171,14 +175,15 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as clientSocket:
             if VIEW_SPECTRUM:
                 streamAx.set_ylabel('PSD $[V^2/Hz]$')
                 streamAx.set_xlabel('Frequency $[Hz]$')
-                streamAx.set_xscale('log')
-                streamAx.set_yscale('log')
+                # streamAx.set_xscale('log')
+                # streamAx.set_yscale('log')
+                streamAx.set_xlim(0,100)
                 streamAx.set_xlim(welchFrequency.min(), welchFrequency.max())
-                streamAx.set_ylim(1e-10, 1e-4)
+                # streamAx.set_ylim(1e-10, 1e-4)
             else:
                 streamAx.set_ylabel('Voltage $[V]$')
                 streamAx.set_xlabel('Time $[s]$')
-                streamAx.set_ylim(0, 3.3)
+                streamAx.set_ylim(0, 5)
                 streamAx.set_xlim(xArray.min(), xArray.max())
 
         #Update the plot 
@@ -212,9 +217,9 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as clientSocket:
 
         #Update the plot 
         plt.pause(0.001)
-
-
+        # print(dataArray)
+        print(np.mean(dataArray))
         ii +=1 
-        print('[Client] Number of Data Blocks Read %i'%(ii), end = '\r')
+        # print('[Client] Number of Data Blocks Read %i'%(ii))
 
 

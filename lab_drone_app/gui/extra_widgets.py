@@ -7,7 +7,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 #Use the QT Backend
 matplotlib.use('Qt5Agg')
 
-from PyQt5 import QtWidgets
+from PyQt6 import QtWidgets
 
 class MplCanvas(Canvas):
     def __init__(self, proj3d = False):
