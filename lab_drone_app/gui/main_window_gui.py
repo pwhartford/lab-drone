@@ -17,8 +17,8 @@ CONFIG_PATH = Path(__file__).parent.parent.absolute() / 'config'
 
 #Pi config
 # PI_ADDRESS = "10.240.2.207"
-PI_ADDRESS = "10.42.0.37"
-
+# PI_ADDRESS = "10.42.0.37"
+PI_ADDRESS = '10.230.1.148'
 
 PORT = 8000
 
@@ -105,10 +105,6 @@ class MainWindow(Ui_MainWindow):
         self.workspace = Path(self.settings['Record Settings']['record-folder'])
 
     def get_settings(self):
-        #Driver Settings
-        # self.settings['Driver Settings']['default-driver'] = self.driverBox.currentText()
-        # self.settings['Driver Settings']['default-bins'] = self.binBox.currentText()
-
         pass 
 
     def default_settings(self):
@@ -130,6 +126,8 @@ class MainWindow(Ui_MainWindow):
 
  
     def connect_to_daq(self):
+        self.streamFunctionWrapper.host = self.ipEdit.text() 
+
         if self.connectButton.text()=='Connect':
             self.streamFunctionWrapper.connect() 
             self.connectButton.setText('Disconnect')

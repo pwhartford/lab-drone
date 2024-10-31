@@ -7,11 +7,11 @@ import matplotlib.pyplot as plt
 from scipy import signal 
 
 #Pi config
-PI_ADDRESS = "10.42.0.37"
+PI_ADDRESS = "10.230.1.148"
 PORT = 8000
 
 #Spectrum settings
-VIEW_SPECTRUM = False 
+VIEW_SPECTRUM = True 
 NPERSEG_FACTOR = 1
 
 #Hotwire calibration... this is old and poor, needs to be handled better

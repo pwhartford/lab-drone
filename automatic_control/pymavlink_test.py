@@ -10,21 +10,28 @@ import matplotlib.pyplot as plt
 import pymavlink.dialects.v20.all as dialect
 
 #General settings 
-USB_PORT = '/dev/ttyUSB0'
+# USB_PORT = '/dev/ttyUSB0'
+# USB_PORT = '/dev/ttyACM1'
+USB_PORT = 'tcp://:5760'
+
 
 TAKEOFF_ALTITUDE = 5 #m 
+TAKEOFF_WAIT = 5
+
+
 WAIT_TIME = 10 #seconds - time to wait in 
 
 #Automatically put the drone in guided mode 
-SET_GUIDED_MODE = False
+SET_GUIDED_MODE = True
 RUN_COMMANDS = True
-TAKEOFF_VEHICLE = False 
-LAND_VEHICLE = False  
+TAKEOFF_VEHICLE = True 
+LAND_VEHICLE = True  
 SET_ATTITUDE = True
 
+
 #Arm/Disarm
-ARM_VEHICLE = False 
-DISARM_VEHICLE = True 
+ARM_VEHICLE = True 
+DISARM_VEHICLE = False 
 
 YAW_ANGLE = 180 #degrees - desired yaw (probably 0 for ease of flight)
 YAW_RATE = 1 #deg/s
@@ -34,14 +41,14 @@ USE_OFFSET_FRAME = False
 SET_LOITER = False 
 
 #Grid information 
-GRID_SPACING = 0.5 #m
-N_POINTS_X = 3
-N_POINTS_Y = 3
-N_POINTS_Z = 3 
+GRID_SPACING = 5 #m
+N_POINTS_X = 2
+N_POINTS_Y = 2
+N_POINTS_Z = 2 
 
 X_MIN = 0 
 Y_MIN = 0
-Z_MIN = 1 
+Z_MIN = 10
 
 
 #Generate grid 
@@ -73,8 +80,6 @@ for ii, height in enumerate(zArray):
 #Transpose array (for easy reading)
 TEST_ARRAY = TEST_ARRAY.T
 
-
-
 #Create figure for plotting 
 testFig = plt.figure() 
 testAx = plt.axes(projection = '3d')
@@ -94,11 +99,7 @@ testAx.set_ylim(Y_MIN-GRID_SPACING, Y_MAX+GRID_SPACING)
 testAx.set_zlim(0, Z_MAX+GRID_SPACING)
 
 #Show initial plot
-plt.show() 
-
-
-
-
+plt.pause(1) 
 
 
 # This sends relative to current drone position
@@ -113,7 +114,9 @@ else:
 
 
 # Create the connection
-connection = mavutil.mavlink_connection(USB_PORT, baud=57600)
+# connection = mavutil.mavlink_connection(USB_PORT, baud=57600)
+connection = mavutil.mavlink_connection('tcp:127.0.0.1:5762')
+
 
 #Wait for a heartbeat signal
 print('Waiting for heartbeat')
@@ -157,18 +160,13 @@ positionMessage = connection.recv_match(type = 'LOCAL_POSITION_NED', blocking = 
 
 
 #Offset the test array by the home position in NED frame 
-TEST_ARRAY += np.array([homeMessage['x'], homeMessage['y'], homeMessage['z']])
-print(TEST_ARRAY)
+# TEST_ARRAY += np.array([homeMessage['x'], homeMessage['y'], -homeMessage['z']])
+# print(TEST_ARRAY)
 
 #Unsure about this...
-TAKEOFF_ALTITUDE-=homeMessage['z']
-
-#Create new figure for plotting 
-testFig = plt.figure() 
-testAx = plt.axes(projection = '3d')
+# TAKEOFF_ALTITUDE-=homeMessage['z']
 
 #Plot the desired points 
-testAx.plot(TEST_ARRAY[:,0], TEST_ARRAY[:,1], -TEST_ARRAY[:,2], marker = '.', linestyle = 'none')
 testAx.plot(homeMessage['x'], homeMessage['y'], -homeMessage['z'], marker = '.', color = 'g', linestyle = 'none')
 
 #Updated points 
@@ -224,8 +222,8 @@ if SET_GUIDED_MODE:
         mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
         mode_id)
 
-    guided_response = connection.recv_match(type='COMMAND_ACK', blocking=True)
-    print(f"Guided ACK:  {guided_response}")
+    # guided_response = connection.recv_match(type='COMMAND_ACK', blocking=True)
+    # print(f"Guided ACK:  {guided_response}")
 
 #Takeoff vehicle 
 if TAKEOFF_VEHICLE:
@@ -233,20 +231,14 @@ if TAKEOFF_VEHICLE:
     connection.mav.command_long_send(connection.target_system, 
                                     connection.target_component,
                                     mavutil.mavlink.MAV_CMD_NAV_TAKEOFF, 
-                                    0, 
-                                    0, 
-                                    0, 
-                                    0, 
-                                    0, 
-                                    0, 
-                                    0,
+                                    0,0,0,0,0,0,0, 
                                     TAKEOFF_ALTITUDE)
 
     takeoff_msg = connection.recv_match(type='COMMAND_ACK', blocking=True, timeout=3)
     print(f"Takeoff ACK:  {takeoff_msg}")
 
     print('Waiting for takeoff')
-    time.sleep(10)
+    time.sleep(TAKEOFF_WAIT)
 
 
 
@@ -292,6 +284,19 @@ def send_rc(mav, target, rcin1=65535, rcin2=65535, rcin3=65535, rcin4=65535,
             *rc_channel_values
         )
 
+
+def set_target_attitude(yaw):
+    connection.mav.command_long_send(
+        connection.target_system,
+        connection.target_component,
+        mavutil.mavlink.MAV_CMD_CONDITION_YAW,
+        0,np.rad2deg(yaw),25, #deg/s
+        0,0,0,0,0)
+
+
+
+
+
 recordFlag = False 
 
 initialTime = time.time() 
@@ -315,47 +320,15 @@ if RUN_COMMANDS:
                                         testPoint[0],
                                         testPoint[1], 
                                         testPoint[2],
-                                        0,
-                                        0, 
-                                        0, 
-                                        0, 
-                                        0, 
-                                        0, 
-                                        np.deg2rad(YAW_ANGLE), 
-                                        0)
+                                        0,0,0,0,0,0,0,0)
 
         #Send message
         connection.mav.send(message)
 
         #Set the target attitude in local NED frame 
         if SET_ATTITUDE:
-            #Try with setting position target (may or may not work) 
-            message = mavutil.mavlink.MAVLink_set_position_target_local_ned_message(0, 
-                                            connection.target_system,
-                                            connection.target_component,
-                                            FRAME, 
-                                            int(0b100111111111), 
-                                            testPoint[0],
-                                            testPoint[1], 
-                                            testPoint[2],
-                                            0,
-                                            0, 
-                                            0, 
-                                            0, 
-                                            0, 
-                                            0, 
-                                            np.deg2rad(YAW_ANGLE), 
-                                            0) 
-
-            #Try with condition yaw
-            message = connection.mav.command_long_send(connection.target_system,
-                                               connection.target_component,
-                                               dialect.MAV_CMD_CONDITION_YAW,
-                                               0,
-                                               YAW_ANGLE,
-                                               YAW_RATE,
-                                               0,0,0,0,0)
-                                        
+            #Set 0 deg attitude
+            set_target_attitude(0)
 
         print('Message sent waiting %s seconds'%WAIT_TIME)
 
@@ -388,6 +361,7 @@ if RUN_COMMANDS:
             if time.time()-initialTime>=WAIT_TIME:
                 initialTime = time.time() 
                 break
+
 
 
 #Land the vehicle (sometimes very strong landing)
